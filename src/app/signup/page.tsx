@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 
 const signupSchema = z.object({
   email: z.string().email('有効なメールアドレスを入力してください'),
@@ -25,7 +24,6 @@ export default function SignupPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClient()
 
   const {
     register,
@@ -40,25 +38,29 @@ export default function SignupPage() {
     setError(null)
 
     try {
-      // Sign up the user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            name: data.name,
-            organization_name: data.organizationName,
-          },
+      // Call the signup API
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          name: data.name,
+          organizationName: data.organizationName,
+        }),
       })
 
-      if (authError) {
-        setError(authError.message)
+      const result = await response.json()
+
+      if (!response.ok) {
+        setError(result.error || 'サインアップに失敗しました')
         return
       }
 
       // Check if email confirmation is required
-      if (authData.user && !authData.session) {
+      if (result.user && !result.session) {
         setError('確認メールを送信しました。メールを確認してアカウントを有効化してください。')
         return
       }
