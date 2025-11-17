@@ -1,0 +1,242 @@
+// Prisma Schema for 現地確認くん
+// Generated from database-design.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// 1. Organization (企業・テナント)
+// ============================================
+
+model Organization {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String   @db.VarChar(255)
+  plan           String   @default("free") @db.VarChar(50)
+  approvalLevels Int      @default(0) @map("approval_levels")
+  logoUrl        String?  @map("logo_url")
+  settings       Json     @default("{}") @db.JsonB
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  users        User[]
+  sites        Site[]
+  templates    Template[]
+  inspections  Inspection[]
+
+  @@map("organizations")
+}
+
+// ============================================
+// 2. User (ユーザー)
+// ============================================
+
+model User {
+  id             String       @id @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  email          String       @unique @db.VarChar(255)
+  name           String       @db.VarChar(100)
+  role           String       @default("user") @db.VarChar(20)
+  approvalLevel  Int          @default(0) @map("approval_level")
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  inspections    Inspection[]
+  approvalLogs   ApprovalLog[]
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// ============================================
+// 3. Site (現地確認先)
+// ============================================
+
+model Site {
+  id             String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String       @db.VarChar(255)
+  permitNumber   String?      @map("permit_number") @db.VarChar(100)
+  address        String?
+  contactName    String?      @map("contact_name") @db.VarChar(100)
+  contactPhone   String?      @map("contact_phone") @db.VarChar(20)
+  contactEmail   String?      @map("contact_email") @db.VarChar(255)
+  facilityInfo   Json         @default("{}") @map("facility_info") @db.JsonB
+  notes          String?
+  isActive       Boolean      @default(true) @map("is_active")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  inspections    Inspection[]
+
+  @@index([organizationId])
+  @@map("sites")
+}
+
+// ============================================
+// 4. Template (チェックシートテンプレート)
+// ============================================
+
+model Template {
+  id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  name           String         @db.VarChar(255)
+  description    String?
+  category       String?        @db.VarChar(100)
+  isDefault      Boolean        @default(false) @map("is_default")
+  sortOrder      Int            @default(0) @map("sort_order")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  templateItems  TemplateItem[]
+  inspections    Inspection[]
+
+  @@index([organizationId])
+  @@index([category])
+  @@map("templates")
+}
+
+// ============================================
+// 5. TemplateItem (テンプレート項目)
+// ============================================
+
+model TemplateItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId  String   @map("template_id") @db.Uuid
+  itemType    String   @map("item_type") @db.VarChar(50)
+  label       String   @db.VarChar(255)
+  description String?
+  options     Json     @default("{}") @db.JsonB
+  required    Boolean  @default(false)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  template        Template         @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  inspectionItems InspectionItem[]
+
+  @@index([templateId])
+  @@map("template_items")
+}
+
+// ============================================
+// 6. Inspection (現地確認実施記録)
+// ============================================
+
+model Inspection {
+  id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String           @map("organization_id") @db.Uuid
+  siteId                String           @map("site_id") @db.Uuid
+  templateId            String           @map("template_id") @db.Uuid
+  inspectorId           String           @map("inspector_id") @db.Uuid
+  inspectionDate        DateTime         @map("inspection_date") @db.Date
+  status                String           @default("draft") @db.VarChar(20)
+  summary               String?
+  currentApprovalLevel  Int              @default(0) @map("current_approval_level")
+  submittedAt           DateTime?        @map("submitted_at") @db.Timestamptz(6)
+  approvedAt            DateTime?        @map("approved_at") @db.Timestamptz(6)
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  site           Site             @relation(fields: [siteId], references: [id])
+  template       Template         @relation(fields: [templateId], references: [id])
+  inspector      User             @relation(fields: [inspectorId], references: [id])
+  inspectionItems InspectionItem[]
+  photos         Photo[]
+  approvalLogs   ApprovalLog[]
+
+  @@index([organizationId])
+  @@index([siteId])
+  @@index([inspectorId])
+  @@index([status])
+  @@index([inspectionDate(sort: Desc)])
+  @@map("inspections")
+}
+
+// ============================================
+// 7. InspectionItem (チェック項目の回答)
+// ============================================
+
+model InspectionItem {
+  id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  inspectionId   String         @map("inspection_id") @db.Uuid
+  templateItemId String         @map("template_item_id") @db.Uuid
+  value          String?
+  metadata       Json           @default("{}") @db.JsonB
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  inspection     Inspection     @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  templateItem   TemplateItem   @relation(fields: [templateItemId], references: [id])
+  photos         Photo[]
+
+  @@unique([inspectionId, templateItemId])
+  @@index([inspectionId])
+  @@index([templateItemId])
+  @@map("inspection_items")
+}
+
+// ============================================
+// 8. Photo (写真)
+// ============================================
+
+model Photo {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inspectionId     String          @map("inspection_id") @db.Uuid
+  inspectionItemId String?         @map("inspection_item_id") @db.Uuid
+  filePath         String          @map("file_path")
+  fileName         String          @map("file_name") @db.VarChar(255)
+  fileSize         Int             @map("file_size")
+  mimeType         String          @map("mime_type") @db.VarChar(100)
+  editedData       Json            @default("{}") @map("edited_data") @db.JsonB
+  sortOrder        Int             @default(0) @map("sort_order")
+  uploadedAt       DateTime        @default(now()) @map("uploaded_at") @db.Timestamptz(6)
+
+  // Relations
+  inspection       Inspection      @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  inspectionItem   InspectionItem? @relation(fields: [inspectionItemId], references: [id])
+
+  @@index([inspectionId])
+  @@index([inspectionItemId])
+  @@map("photos")
+}
+
+// ============================================
+// 9. ApprovalLog (承認ログ)
+// ============================================
+
+model ApprovalLog {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inspectionId  String     @map("inspection_id") @db.Uuid
+  approverId    String     @map("approver_id") @db.Uuid
+  approvalLevel Int        @map("approval_level")
+  action        String     @db.VarChar(20)
+  comment       String?
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  approver      User       @relation(fields: [approverId], references: [id])
+
+  @@index([inspectionId])
+  @@index([approverId])
+  @@map("approval_logs")
+}
