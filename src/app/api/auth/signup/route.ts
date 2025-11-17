@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
+  const adminClient = createAdminClient()
   const body = await request.json()
 
   const { email, password, name, organizationName } = body
@@ -22,8 +24,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 2. 組織を作成
-    const { data: organization, error: orgError } = await supabase
+    // 2. 組織を作成（RLSをバイパスするためadminClientを使用）
+    const { data: organization, error: orgError } = await adminClient
       .from('organizations')
       .insert({
         name: organizationName,
@@ -36,8 +38,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create organization' }, { status: 500 })
     }
 
-    // 3. ユーザーレコードを作成
-    const { error: userError } = await supabase
+    // 3. ユーザーレコードを作成（RLSをバイパスするためadminClientを使用）
+    const { error: userError } = await adminClient
       .from('users')
       .insert({
         auth_id: authData.user.id,
