@@ -1,0 +1,20 @@
+-- Fix updated_at columns to have DEFAULT CURRENT_TIMESTAMP
+-- Run this script in your Supabase SQL Editor to fix existing tables
+
+ALTER TABLE organizations
+  ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE users
+  ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE sites
+  ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE templates
+  ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE inspections
+  ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE inspection_items
+  ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP;

@@ -47,6 +47,7 @@ export default function LoginPage() {
       router.push('/dashboard')
       router.refresh()
     } catch (err) {
+      console.error('Unexpected login error', err)
       setError('ログイン中にエラーが発生しました')
     } finally {
       setIsLoading(false)

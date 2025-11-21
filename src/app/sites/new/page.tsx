@@ -9,8 +9,9 @@ import Link from 'next/link'
 
 const siteSchema = z.object({
   name: z.string().min(1, '施設名を入力してください'),
+  facility_types: z.array(z.enum(['transport', 'transfer_storage', 'intermediate_treatment', 'final_disposal'])).optional(),
   address: z.string().min(1, '住所を入力してください'),
-  contact_person: z.string().optional(),
+  contact_name: z.string().optional(),
   contact_phone: z.string().optional(),
   contact_email: z.string().email('有効なメールアドレスを入力してください').optional().or(z.literal('')),
   notes: z.string().optional(),
@@ -18,10 +19,13 @@ const siteSchema = z.object({
 
 type SiteFormData = z.infer<typeof siteSchema>
 
+type FacilityType = 'transport' | 'transfer_storage' | 'intermediate_treatment' | 'final_disposal'
+
 export default function NewSitePage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [facilityTypes, setFacilityTypes] = useState<FacilityType[]>([])
 
   const {
     register,
@@ -30,6 +34,14 @@ export default function NewSitePage() {
   } = useForm<SiteFormData>({
     resolver: zodResolver(siteSchema),
   })
+
+  const toggleFacilityType = (type: FacilityType) => {
+    setFacilityTypes(prev =>
+      prev.includes(type)
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    )
+  }
 
   const onSubmit = async (data: SiteFormData) => {
     setIsLoading(true)
@@ -41,7 +53,10 @@ export default function NewSitePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          facility_types: facilityTypes,
+        }),
       })
 
       if (!response.ok) {
@@ -51,6 +66,7 @@ export default function NewSitePage() {
       router.push('/sites')
       router.refresh()
     } catch (err) {
+      console.error('Failed to create site', err)
       setError('現地確認先の登録に失敗しました')
     } finally {
       setIsLoading(false)
@@ -91,6 +107,39 @@ export default function NewSitePage() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              施設種別（複数選択可）
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: 'transport', label: '運搬（車両基地など）' },
+                { value: 'transfer_storage', label: '積替保管施設' },
+                { value: 'intermediate_treatment', label: '中間処理施設' },
+                { value: 'final_disposal', label: '最終処分場' },
+              ].map(option => (
+                <div key={option.value} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id={`facility_type_${option.value}`}
+                    checked={facilityTypes.includes(option.value as FacilityType)}
+                    onChange={() => toggleFacilityType(option.value as FacilityType)}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label
+                    htmlFor={`facility_type_${option.value}`}
+                    className="ml-2 block text-sm text-gray-700"
+                  >
+                    {option.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              該当する施設種別をすべて選択してください
+            </p>
+          </div>
+
+          <div>
             <label htmlFor="address" className="block text-sm font-medium text-gray-700">
               住所 <span className="text-red-500">*</span>
             </label>
@@ -106,13 +155,13 @@ export default function NewSitePage() {
           </div>
 
           <div>
-            <label htmlFor="contact_person" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="contact_name" className="block text-sm font-medium text-gray-700">
               担当者名
             </label>
             <input
-              {...register('contact_person')}
+              {...register('contact_name')}
               type="text"
-              id="contact_person"
+              id="contact_name"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
           </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 
@@ -27,11 +27,7 @@ export default function SiteDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  useEffect(() => {
-    fetchSite()
-  }, [id])
-
-  const fetchSite = async () => {
+  const fetchSite = useCallback(async () => {
     try {
       const response = await fetch(`/api/sites/${id}`)
       if (!response.ok) {
@@ -40,11 +36,16 @@ export default function SiteDetailPage() {
       const data = await response.json()
       setSite(data)
     } catch (err) {
+      console.error('Failed to fetch site', err)
       setError('現地確認先の取得に失敗しました')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    fetchSite()
+  }, [fetchSite])
 
   const handleDelete = async () => {
     setIsDeleting(true)
@@ -60,6 +61,7 @@ export default function SiteDetailPage() {
       router.push('/sites')
       router.refresh()
     } catch (err) {
+      console.error('Failed to delete site', err)
       setError('現地確認先の削除に失敗しました')
       setShowDeleteConfirm(false)
     } finally {

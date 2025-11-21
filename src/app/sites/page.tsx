@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 
 interface Site {
   id: string
   name: string
   address: string
-  contact_person: string | null
+  contact_name: string | null
   contact_phone: string | null
   contact_email: string | null
   notes: string | null
@@ -16,7 +15,6 @@ interface Site {
 }
 
 export default function SitesPage() {
-  const router = useRouter()
   const [sites, setSites] = useState<Site[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,6 +32,7 @@ export default function SitesPage() {
       const data = await response.json()
       setSites(data)
     } catch (err) {
+      console.error('Failed to fetch sites', err)
       setError('現地確認先の取得に失敗しました')
     } finally {
       setIsLoading(false)
@@ -118,9 +117,9 @@ export default function SitesPage() {
                           {site.name}
                         </p>
                         <p className="mt-1 text-sm text-gray-500">{site.address}</p>
-                        {site.contact_person && (
+                        {site.contact_name && (
                           <p className="mt-1 text-sm text-gray-500">
-                            担当者: {site.contact_person}
+                            担当者: {site.contact_name}
                             {site.contact_phone && ` / ${site.contact_phone}`}
                           </p>
                         )}

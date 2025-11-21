@@ -55,7 +55,11 @@ export default function SignupPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        setError(result.error || 'サインアップに失敗しました')
+        const errorMessage = result.details
+          ? `${result.error}: ${result.details} (Code: ${result.code || 'unknown'})`
+          : result.error || 'サインアップに失敗しました'
+        setError(errorMessage)
+        console.error('Signup error:', result)
         return
       }
 
@@ -68,6 +72,7 @@ export default function SignupPage() {
       router.push('/dashboard')
       router.refresh()
     } catch (err) {
+      console.error('Unexpected signup error', err)
       setError('サインアップ中にエラーが発生しました')
     } finally {
       setIsLoading(false)

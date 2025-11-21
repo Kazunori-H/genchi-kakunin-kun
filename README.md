@@ -1,4 +1,4 @@
-﻿# 現地確認くん
+# 現地確認くん
 
 産業廃棄物処理施設などの現地確認業務を効率化するマルチテナントSaaSアプリケーション
 
@@ -21,10 +21,10 @@
 ### 提供する価値
 
 - ✅ カスタマイズ可能なチェックシート
+- ✅ 施設種別に応じた確認項目の自動表示
 - ✅ モバイル対応の確認作業
-- ✅ 写真の撮影・編集・注釈追加
 - ✅ 柔軟な承認ワークフロー
-- ✅ PDFレポート自動生成
+- ✅ テンプレート複製機能
 
 ---
 
@@ -33,31 +33,50 @@
 ### 前提条件
 
 - Node.js 18以上
-- pnpm (推奨)
+- npm
 - Supabaseアカウント
 
-### インストール
+### セットアップ
+
+詳細は **[SETUP.md](./SETUP.md)** を参照してください。
 
 ```bash
-# リポジトリをクローン
+# 1. リポジトリをクローン
 git clone <repository-url>
 cd genchi-kakunin-kun
 
-# 依存関係をインストール
-pnpm install
+# 2. 依存関係をインストール
+npm install
 
-# 環境変数を設定
+# 3. 環境変数を設定
 cp .env.example .env.local
 # .env.local を編集してSupabase認証情報を設定
 
-# Prisma Clientを生成
-npx prisma generate
+# 4. データベースマイグレーション実行
+# database/README.md の手順に従ってSupabaseでSQLを実行
 
-# 開発サーバーを起動
-pnpm dev
+# 5. 開発サーバーを起動
+npm run dev
 ```
 
 http://localhost:3000 でアクセス可能
+
+---
+
+## 📚 ドキュメント
+
+| ドキュメント | 説明 |
+|------------|------|
+| **[SETUP.md](./SETUP.md)** | 環境構築・データベースセットアップの完全ガイド |
+| **[FEATURES.md](./FEATURES.md)** | 実装済み機能の詳細説明 |
+| **[DEVELOPMENT-ROADMAP.md](./DEVELOPMENT-ROADMAP.md)** | 今後の開発予定 |
+| **[LAYOUT-GUIDE.md](./LAYOUT-GUIDE.md)** | レイアウト使用ガイド（DashboardLayout） |
+| **[docs/CODEBASE-CLEANUP.md](./docs/CODEBASE-CLEANUP.md)** | コードベース整理ステップ（安全な進め方） |
+| **[docs/INVITE-INSTRUCTIONS.md](./docs/INVITE-INSTRUCTIONS.md)** | 招待・初期設定のかんたん手順 |
+| **[docs/INVITE-WORKFLOW.md](./docs/INVITE-WORKFLOW.md)** | 招待ワークフローの詳細 |
+| **[database/README.md](./database/README.md)** | データベースマイグレーション手順 |
+| **[docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)** | トラブルシューティング |
+| **[docs/archive/](./docs/archive/)** | 過去のドキュメント・SQLファイル（参考用） |
 
 ---
 
@@ -67,17 +86,20 @@ http://localhost:3000 でアクセス可能
 genchi-kakunin-kun/
 ├── src/
 │   ├── app/              # Next.js App Router
-│   ├── components/       # Reactコンポーネント
-│   ├── lib/              # ユーティリティ・ライブラリ
-│   ├── store/            # Zustand状態管理
-│   └── types/            # TypeScript型定義
-├── prisma/
-│   └── schema.prisma     # データベーススキーマ
-├── docs/                 # ドキュメント
-│   ├── database-design.md
-│   ├── architecture.md
-│   └── development-guide.md
-└── public/               # 静的ファイル
+│   │   ├── sites/        # 現地確認先管理
+│   │   ├── templates/    # テンプレート管理
+│   │   └── inspections/  # 確認記録管理
+│   └── lib/              # ユーティリティ・ライブラリ
+│       └── supabase/     # Supabaseクライアント
+├── database/
+│   ├── migrations/       # データベースマイグレーション（番号順）
+│   └── seeds/            # 初期データ
+├── docs/
+│   ├── TROUBLESHOOTING.md
+│   └── archive/          # 過去のドキュメント
+├── SETUP.md              # セットアップガイド
+├── FEATURES.md           # 機能一覧
+└── DEVELOPMENT-ROADMAP.md
 ```
 
 ---
@@ -85,56 +107,79 @@ genchi-kakunin-kun/
 ## 🛠️ 技術スタック
 
 ### フロントエンド
-- **Next.js 14** (App Router)
+- **Next.js 16** (App Router, Turbopack)
 - **TypeScript**
-- **Tailwind CSS**
-- **Zustand** (状態管理)
+- **Tailwind CSS v4**
 - **React Hook Form + Zod** (フォーム・バリデーション)
-- **react-konva** (画像編集)
 
 ### バックエンド
 - **Next.js API Routes**
-- **Prisma** (ORM)
-- **Supabase** (認証・データベース・ストレージ)
+- **Supabase** (認証・PostgreSQL・ストレージ)
 
 ### インフラ
-- **Vercel** (ホスティング)
+- **Cloudflare** (ホスティング)
 - **PostgreSQL** (Supabase)
 
 ---
 
-## 📚 ドキュメント
+## ✨ 主な機能
 
-| ドキュメント | 説明 |
-|------------|------|
-| [要件定義書](../projectplan.md) | プロジェクト全体の要件定義 |
-| [データベース設計書](./docs/database-design.md) | ER図・テーブル定義・RLSポリシー |
-| [アーキテクチャ設計書](./docs/architecture.md) | システムアーキテクチャ・技術選定 |
-| [開発者向けガイド](./docs/development-guide.md) | セットアップ・コーディング規約・トラブルシューティング |
+### 1. 現地確認先管理
+- 施設情報の登録・編集・削除
+- **複数の施設種別を設定可能** (運搬/積替保管/中間処理/最終処分)
+
+### 2. テンプレート管理
+- チェックシートテンプレートの作成・編集
+- **システムテンプレート**: すべての組織で利用可能な標準テンプレート
+- **テンプレート複製**: ワンクリックでテンプレートをコピー
+- **条件付き項目表示**: 施設種別に応じて必要な項目のみ表示
+
+### 3. 確認記録管理
+- チェックリスト入力（施設種別による自動フィルタリング）
+- 概要情報（時刻、立会者）の管理
+- サマリーページでの結果確認
+- **削除機能**: 下書きの確認記録を作成者のみ削除可能
+- **改善されたフィルターUI**: カード式レイアウト、視覚的フィードバック
+
+### 4. 承認ワークフロー
+- 申請・承認・却下・取り下げ
+- **サマリーページから承認申請**: 必須項目の自動バリデーション付き
+- 組織ごとの承認設定
+- ステータス管理（draft / submitted / approved / rejected）
+
+### 5. 統一レイアウト
+- **DashboardLayout**: 全ページで統一されたヘッダーとナビゲーション
+- アカウントメニュー（プロフィール設定、組織設定、ログアウト）
+- レイアウト使用ガイドの提供
+
+詳細は **[FEATURES.md](./FEATURES.md)** を参照してください。
 
 ---
 
 ## 🗄️ データベース
 
-### テーブル一覧
+### 主要テーブル
 
 | テーブル | 説明 |
 |---------|------|
 | `organizations` | 企業・テナント |
 | `users` | ユーザー |
-| `sites` | 現地確認先 |
-| `templates` | チェックシートテンプレート |
-| `template_items` | テンプレート項目 |
-| `inspections` | 確認実施記録 |
-| `inspection_items` | チェック項目の回答 |
-| `photos` | 写真 |
-| `approval_logs` | 承認ログ |
+| `sites` | 現地確認先（facility_types: TEXT[]） |
+| `templates` | チェックシートテンプレート（is_system_template） |
+| `template_items` | テンプレート項目（display_facility_types） |
+| `inspections` | 確認実施記録（overview_metadata） |
+| `inspection_responses` | チェック項目の回答 |
+| `approval_settings` | 承認設定 |
+| `approval_requests` | 承認リクエスト |
+| `approval_actions` | 承認アクション |
 
 ### セキュリティ
 
-- Row Level Security (RLS) によるマルチテナント分離
+- **Row Level Security (RLS)** によるマルチテナント分離
 - 組織単位でのデータ分離
-- ロールベースアクセス制御 (admin / user / viewer)
+- システムテンプレートの読み取り専用保護
+
+マイグレーション手順は **[database/README.md](./database/README.md)** を参照してください。
 
 ---
 
@@ -144,106 +189,57 @@ genchi-kakunin-kun/
 
 ```bash
 # 開発サーバー起動
-pnpm dev
+npm run dev
 
 # 本番ビルド
-pnpm build
+npm run build
 
 # Lint実行
-pnpm lint
+npm run lint
 
 # 型チェック
-pnpm type-check
+npm run type-check
 
-# Prisma Studio起動 (GUIでDB確認)
-npx prisma studio
+# フェーズ完了チェック（Lintのみ）
+npm run phase:check
+
+# Storage/RLSセットアップ
+# （Supabase SQL Editorで実行）
+# database/storage/setup_inspection_photos.sql
 ```
 
-### データベースマイグレーション
+### トラブルシューティング
 
-```bash
-# スキーマからSQLを生成
-npx prisma migrate diff \
-  --from-empty \
-  --to-schema-datamodel prisma/schema.prisma \
-  --script > migration.sql
-
-# Supabase SQL Editorで実行
-
-# Prisma Clientを再生成
-npx prisma generate
-```
+問題が発生した場合は **[docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)** を参照してください。
 
 ---
 
-## 🧪 テスト
+## 📈 開発ロードマップ
 
-```bash
-# 単体テスト
-pnpm test
+詳細は **[DEVELOPMENT-ROADMAP.md](./DEVELOPMENT-ROADMAP.md)** を参照してください。
 
-# カバレッジ確認
-pnpm test:coverage
+### 実装済み
 
-# E2Eテスト (導入予定)
-pnpm test:e2e
-```
+- ✅ データベース設計
+- ✅ 認証・認可（Supabase Auth）
+- ✅ 現地確認先管理（複数施設種別対応）
+- ✅ テンプレート管理（システムテンプレート・複製機能）
+- ✅ 確認記録管理（概要情報・チェックリスト入力）
+- ✅ 確認記録の削除機能（下書き・作成者のみ）
+- ✅ 承認ワークフロー（申請・承認・却下・取り下げ）
+- ✅ サマリーページからの承認申請（必須項目バリデーション）
+- ✅ 条件付き項目表示（施設種別フィルタリング）
+- ✅ レポート機能（統計ダッシュボード、評価分布チャート）
+- ✅ PDF/CSVエクスポート機能
+- ✅ 統一レイアウト（DashboardLayout）
+- ✅ 改善されたフィルターUI（カード式レイアウト）
 
----
+### 今後の予定
 
-## 🚢 デプロイ
-
-### Vercelへのデプロイ
-
-```bash
-# Vercel CLIをインストール
-npm i -g vercel
-
-# デプロイ
-vercel
-
-# 本番環境にデプロイ
-vercel --prod
-```
-
-### 環境変数
-
-以下の環境変数をVercelダッシュボードで設定:
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `DATABASE_URL`
-- `NEXT_PUBLIC_APP_URL`
-
----
-
-## 📈 ロードマップ
-
-### MVP (Phase 1) - 完了予定: 2025年3月
-
-- [x] データベース設計
-- [x] 認証・認可
-- [ ] 現地確認先管理
-- [ ] テンプレート管理
-- [ ] 確認作業画面
-- [ ] 写真編集機能
-- [ ] 承認ワークフロー
-- [ ] PDFレポート出力
-
-### Phase 2 (3-6ヶ月後)
-
-- [ ] モバイルアプリ (React Native)
-- [ ] オフライン対応強化
-- [ ] ダッシュボード・分析機能
+- [ ] 確認記録のページネーション・検索強化
+- [ ] 多段承認とユーザー権限管理
+- [ ] 組織・ユーザー管理機能
 - [ ] 通知機能
-
-### Phase 3 (6-12ヶ月後)
-
-- [ ] 外部システム連携API
-- [ ] AIによる異常検知
-- [ ] マルチ言語対応
-- [ ] エンタープライズプラン
 
 ---
 
@@ -257,23 +253,20 @@ vercel --prod
 4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
 5. プルリクエストを作成
 
-詳細は [開発者向けガイド](./docs/development-guide.md) を参照してください。
-
 ---
 
 ## 📄 ライセンス
 
-このプロジェクトはMITライセンスの下で公開されています。詳細は [LICENSE](./LICENSE) を参照してください。
+このプロジェクトはMITライセンスの下で公開されています。
 
 ---
 
 ## 🙏 謝辞
 
 - [Next.js](https://nextjs.org/)
-- [Prisma](https://www.prisma.io/)
 - [Supabase](https://supabase.com/)
-- [Vercel](https://vercel.com/)
 - [Tailwind CSS](https://tailwindcss.com/)
+- [Cloudflare](https://www.cloudflare.com/)
 
 ---
 

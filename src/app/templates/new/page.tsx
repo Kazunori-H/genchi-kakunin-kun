@@ -8,7 +8,7 @@ interface TemplateItemInput {
   itemType: string
   label: string
   description: string
-  options: any
+  options: Record<string, unknown>
   required: boolean
   sortOrder: number
 }
@@ -51,7 +51,7 @@ export default function NewTemplatePage() {
     setItems(items.filter((_, i) => i !== index))
   }
 
-  const updateItem = (index: number, field: string, value: any) => {
+  const updateItem = (index: number, field: string, value: unknown) => {
     const newItems = [...items]
     newItems[index] = { ...newItems[index], [field]: value }
     setItems(newItems)
@@ -106,6 +106,7 @@ export default function NewTemplatePage() {
 
       router.push('/templates')
     } catch (err) {
+      console.error('Failed to create template', err)
       setError('テンプレートの作成に失敗しました')
       setIsLoading(false)
     }

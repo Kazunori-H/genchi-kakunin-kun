@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(timeout 5 cmd:*)",
+      "Bash(exit 0)",
+      "Bash(copy migration.sql databasemigrations01_initial_schema.sql)",
+      "Bash(copy:*)",
+      "Bash(npm install:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(npm search:*)",
+      "Bash(dir /s /b .codex*.tsx 2)",
+      "Bash(nul)",
+      "Bash(findstr:*)",
+      "Bash(dir:*)",
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
+}

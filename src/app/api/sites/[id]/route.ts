@@ -20,7 +20,7 @@ export async function GET(
   const { data: userData } = await supabase
     .from('users')
     .select('organization_id')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!userData) {
@@ -65,7 +65,7 @@ export async function PUT(
   const { data: userData } = await supabase
     .from('users')
     .select('organization_id')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!userData) {
@@ -79,8 +79,9 @@ export async function PUT(
     .from('sites')
     .update({
       name: body.name,
+      facility_types: body.facility_types ?? [],
       address: body.address,
-      contact_person: body.contact_person,
+      contact_name: body.contact_name,
       contact_phone: body.contact_phone,
       contact_email: body.contact_email,
       notes: body.notes,
@@ -120,7 +121,7 @@ export async function DELETE(
   const { data: userData } = await supabase
     .from('users')
     .select('organization_id')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!userData) {

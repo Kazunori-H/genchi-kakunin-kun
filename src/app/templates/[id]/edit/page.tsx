@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -9,9 +9,10 @@ interface TemplateItemInput {
   itemType: string
   label: string
   description: string
-  options: any
+  options: Record<string, unknown>
   required: boolean
   sortOrder: number
+  displayFacilityTypes: string[]
 }
 
 interface Template {
@@ -26,9 +27,10 @@ interface Template {
     item_type: string
     label: string
     description: string | null
-    options: any
+    options: Record<string, unknown> | null
     required: boolean
     sort_order: number
+    display_facility_types: string[] | null
   }>
 }
 
@@ -54,11 +56,7 @@ export default function EditTemplatePage() {
     { value: 'photo', label: '写真添付' },
   ]
 
-  useEffect(() => {
-    fetchTemplate()
-  }, [])
-
-  const fetchTemplate = async () => {
+  const fetchTemplate = useCallback(async () => {
     try {
       const response = await fetch(`/api/templates/${params.id}`)
       if (!response.ok) {
@@ -78,17 +76,23 @@ export default function EditTemplatePage() {
             itemType: item.item_type,
             label: item.label,
             description: item.description || '',
-            options: item.options,
+            options: item.options || {},
             required: item.required,
             sortOrder: item.sort_order,
+            displayFacilityTypes: item.display_facility_types || [],
           }))
       )
     } catch (err) {
+      console.error('Failed to fetch template', err)
       setError('テンプレートの取得に失敗しました')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    fetchTemplate()
+  }, [fetchTemplate])
 
   const addItem = () => {
     setItems([
@@ -100,6 +104,7 @@ export default function EditTemplatePage() {
         options: {},
         required: false,
         sortOrder: items.length,
+        displayFacilityTypes: [],
       },
     ])
   }
@@ -108,9 +113,20 @@ export default function EditTemplatePage() {
     setItems(items.filter((_, i) => i !== index))
   }
 
-  const updateItem = (index: number, field: string, value: any) => {
+  const updateItem = (index: number, field: string, value: unknown) => {
     const newItems = [...items]
     newItems[index] = { ...newItems[index], [field]: value }
+    setItems(newItems)
+  }
+
+  const toggleFacilityType = (itemIndex: number, facilityType: string) => {
+    const newItems = [...items]
+    const currentTypes = newItems[itemIndex].displayFacilityTypes
+    if (currentTypes.includes(facilityType)) {
+      newItems[itemIndex].displayFacilityTypes = currentTypes.filter(t => t !== facilityType)
+    } else {
+      newItems[itemIndex].displayFacilityTypes = [...currentTypes, facilityType]
+    }
     setItems(newItems)
   }
 
@@ -163,6 +179,7 @@ export default function EditTemplatePage() {
 
       router.push(`/templates/${params.id}`)
     } catch (err) {
+      console.error('Failed to update template', err)
       setError('テンプレートの更新に失敗しました')
       setIsSaving(false)
     }
@@ -413,6 +430,39 @@ export default function EditTemplatePage() {
                       placeholder="この項目の説明や確認ポイント"
                       className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
+                  </div>
+
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      表示する施設種別
+                    </label>
+                    <div className="space-y-2">
+                      {[
+                        { value: 'transport', label: '運搬' },
+                        { value: 'transfer_storage', label: '積替保管' },
+                        { value: 'intermediate_treatment', label: '中間処理' },
+                        { value: 'final_disposal', label: '最終処分' },
+                      ].map((facilityType) => (
+                        <div key={facilityType.value} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`item_${index}_facility_${facilityType.value}`}
+                            checked={item.displayFacilityTypes.includes(facilityType.value)}
+                            onChange={() => toggleFacilityType(index, facilityType.value)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          />
+                          <label
+                            htmlFor={`item_${index}_facility_${facilityType.value}`}
+                            className="ml-2 block text-sm text-gray-700"
+                          >
+                            {facilityType.label}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      選択した施設種別でのみこの項目を表示します（未選択の場合はすべての施設種別で表示）
+                    </p>
                   </div>
                 </div>
               ))}

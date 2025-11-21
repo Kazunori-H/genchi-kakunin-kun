@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -9,7 +9,7 @@ interface TemplateItem {
   item_type: string
   label: string
   description: string | null
-  options: any
+  options: Record<string, unknown> | null
   required: boolean
   sort_order: number
 }
@@ -20,6 +20,7 @@ interface Template {
   description: string | null
   category: string | null
   is_default: boolean
+  is_system_template: boolean
   sort_order: number
   created_at: string
   template_items: TemplateItem[]
@@ -31,11 +32,7 @@ export default function TemplatesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchTemplates()
-  }, [])
-
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     try {
       const response = await fetch('/api/templates')
       if (!response.ok) {
@@ -44,9 +41,40 @@ export default function TemplatesPage() {
       const data = await response.json()
       setTemplates(data)
     } catch (err) {
+      console.error('Failed to fetch templates', err)
       setError('テンプレートの取得に失敗しました')
     } finally {
       setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTemplates()
+  }, [fetchTemplates])
+
+  const handleDuplicate = async (id: string, name: string) => {
+    if (!confirm(`「${name}」を複製しますか？`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/templates/${id}/duplicate`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to duplicate template')
+      }
+
+      const newTemplate = await response.json()
+      // 複製成功後、新しいテンプレートの詳細ページに遷移
+      router.push(`/templates/${newTemplate.id}`)
+      router.refresh()
+    } catch (err) {
+      console.error('Failed to duplicate template', err)
+      const message =
+        err instanceof Error ? err.message : 'テンプレートの複製に失敗しました'
+      alert(message)
     }
   }
 
@@ -61,13 +89,17 @@ export default function TemplatesPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to delete template')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete template')
       }
 
       // 削除成功後、リストを再取得
       fetchTemplates()
     } catch (err) {
-      alert('テンプレートの削除に失敗しました')
+      console.error('Failed to delete template', err)
+      const message =
+        err instanceof Error ? err.message : 'テンプレートの削除に失敗しました'
+      alert(message)
     }
   }
 
@@ -146,7 +178,12 @@ export default function TemplatesPage() {
                         >
                           {template.name}
                         </Link>
-                        {template.is_default && (
+                        {template.is_system_template && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            システム
+                          </span>
+                        )}
+                        {template.is_default && !template.is_system_template && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                             デフォルト
                           </span>
@@ -195,18 +232,51 @@ export default function TemplatesPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Link
-                        href={`/templates/${template.id}/edit`}
-                        className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                      >
-                        編集
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(template.id, template.name)}
-                        className="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                      >
-                        削除
-                      </button>
+                      {template.is_system_template ? (
+                        <>
+                          <button
+                            disabled
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-200 text-xs font-medium rounded text-gray-400 bg-gray-50 cursor-not-allowed"
+                            title="システムテンプレートは編集できません"
+                          >
+                            編集
+                          </button>
+                          <button
+                            onClick={() => handleDuplicate(template.id, template.name)}
+                            className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-xs font-medium rounded text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          >
+                            複製
+                          </button>
+                          <button
+                            disabled
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-200 text-xs font-medium rounded text-gray-400 bg-gray-50 cursor-not-allowed"
+                            title="システムテンプレートは削除できません"
+                          >
+                            削除
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            href={`/templates/${template.id}/edit`}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          >
+                            編集
+                          </Link>
+                          <button
+                            onClick={() => handleDuplicate(template.id, template.name)}
+                            className="inline-flex items-center px-3 py-1.5 border border-indigo-300 text-xs font-medium rounded text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          >
+                            複製
+                          </button>
+                          <button
+                            onClick={() => handleDelete(template.id, template.name)}
+                            className="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          >
+                            削除
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

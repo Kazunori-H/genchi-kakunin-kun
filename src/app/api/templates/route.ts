@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import type { TemplatePayload, TemplateItemPayload } from '@/types/template'
 
 export async function GET() {
   const supabase = await createClient()
@@ -16,14 +17,14 @@ export async function GET() {
   const { data: userData } = await supabase
     .from('users')
     .select('organization_id')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!userData) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
-  // 組織のテンプレートを取得（テンプレート項目も含む）
+  // 組織のテンプレート + システムテンプレートを取得（テンプレート項目も含む）
   const { data: templates, error } = await supabase
     .from('templates')
     .select(`
@@ -35,10 +36,12 @@ export async function GET() {
         description,
         options,
         required,
-        sort_order
+        sort_order,
+        display_facility_types
       )
     `)
-    .eq('organization_id', userData.organization_id)
+    .or(`organization_id.eq.${userData.organization_id},is_system_template.eq.true`)
+    .order('is_system_template', { ascending: false })
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false })
 
@@ -64,14 +67,14 @@ export async function POST(request: Request) {
   const { data: userData } = await supabase
     .from('users')
     .select('organization_id')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!userData) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
-  const body = await request.json()
+  const body = (await request.json()) as TemplatePayload
 
   // テンプレートを作成
   const { data: template, error: templateError } = await supabase
@@ -96,14 +99,15 @@ export async function POST(request: Request) {
 
   // テンプレート項目を作成
   if (body.items && body.items.length > 0) {
-    const items = body.items.map((item: any, index: number) => ({
+    const items = body.items.map((item: TemplateItemPayload, index: number) => ({
       template_id: template.id,
       item_type: item.itemType,
       label: item.label,
-      description: item.description,
+      description: item.description ?? null,
       options: item.options || {},
-      required: item.required || false,
-      sort_order: item.sortOrder !== undefined ? item.sortOrder : index,
+      required: item.required ?? false,
+      sort_order: item.sortOrder ?? index,
+      display_facility_types: item.displayFacilityTypes ?? [],
     }))
 
     const { error: itemsError } = await supabase

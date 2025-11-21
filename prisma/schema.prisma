@@ -52,6 +52,7 @@ model User {
   organization   Organization @relation(fields: [organizationId], references: [id])
   inspections    Inspection[]
   approvalLogs   ApprovalLog[]
+  inspectionEditLogs InspectionEditLog[]
 
   @@index([organizationId])
   @@index([email])
@@ -161,6 +162,7 @@ model Inspection {
   inspectionItems InspectionItem[]
   photos         Photo[]
   approvalLogs   ApprovalLog[]
+  editLogs       InspectionEditLog[]
 
   @@index([organizationId])
   @@index([siteId])
@@ -239,4 +241,24 @@ model ApprovalLog {
   @@index([inspectionId])
   @@index([approverId])
   @@map("approval_logs")
+}
+
+// ============================================
+// 10. InspectionEditLog (確認記録編集履歴)
+// ============================================
+
+model InspectionEditLog {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  inspectionId  String   @map("inspection_id") @db.Uuid
+  editorId      String   @map("editor_id") @db.Uuid
+  action        String   @default("update_overview") @db.VarChar(50)
+  changedFields String[] @map("changed_fields") @default([])
+  changes       Json     @default("{}") @db.JsonB
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  editor        User       @relation(fields: [editorId], references: [id])
+
+  @@index([inspectionId])
+  @@map("inspection_edit_logs")
 }

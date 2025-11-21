@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import type { TemplatePayload, TemplateItemPayload } from '@/types/template'
 
 export async function GET(
   request: Request,
@@ -20,14 +21,14 @@ export async function GET(
   const { data: userData } = await supabase
     .from('users')
     .select('organization_id')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!userData) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
-  // テンプレートを取得（組織の確認）
+  // テンプレートを取得（組織のテンプレート または システムテンプレート）
   const { data: template, error } = await supabase
     .from('templates')
     .select(`
@@ -39,19 +40,29 @@ export async function GET(
         description,
         options,
         required,
-        sort_order
+        sort_order,
+        display_facility_types
       )
     `)
     .eq('id', id)
-    .eq('organization_id', userData.organization_id)
+    .or(`organization_id.eq.${userData.organization_id},is_system_template.eq.true`)
     .single()
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Template fetch error:', error)
+    return NextResponse.json({
+      error: 'Failed to fetch template',
+      details: error.message,
+      code: error.code
+    }, { status: 500 })
   }
 
   if (!template) {
-    return NextResponse.json({ error: 'Template not found' }, { status: 404 })
+    console.error('Template not found:', id)
+    return NextResponse.json({
+      error: 'Template not found',
+      templateId: id
+    }, { status: 404 })
   }
 
   return NextResponse.json(template)
@@ -76,14 +87,28 @@ export async function PUT(
   const { data: userData } = await supabase
     .from('users')
     .select('organization_id')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!userData) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
   }
 
-  const body = await request.json()
+  // Check if this is a system template (cannot be edited)
+  const { data: existingTemplate } = await supabase
+    .from('templates')
+    .select('is_system_template')
+    .eq('id', id)
+    .single()
+
+  if (existingTemplate?.is_system_template) {
+    return NextResponse.json(
+      { error: 'システムテンプレートは編集できません' },
+      { status: 403 }
+    )
+  }
+
+  const body = (await request.json()) as TemplatePayload
 
   // テンプレートを更新（組織の確認）
   const { data: template, error: templateError } = await supabase
@@ -118,14 +143,15 @@ export async function PUT(
 
     // 新しい項目を作成
     if (body.items && body.items.length > 0) {
-      const items = body.items.map((item: any, index: number) => ({
+      const items = body.items.map((item: TemplateItemPayload, index: number) => ({
         template_id: id,
         item_type: item.itemType,
         label: item.label,
-        description: item.description,
+        description: item.description ?? null,
         options: item.options || {},
-        required: item.required || false,
-        sort_order: item.sortOrder !== undefined ? item.sortOrder : index,
+        required: item.required ?? false,
+        sort_order: item.sortOrder ?? index,
+        display_facility_types: item.displayFacilityTypes ?? [],
       }))
 
       const { error: itemsError } = await supabase
@@ -153,7 +179,8 @@ export async function PUT(
         description,
         options,
         required,
-        sort_order
+        sort_order,
+        display_facility_types
       )
     `)
     .eq('id', id)
@@ -181,11 +208,25 @@ export async function DELETE(
   const { data: userData } = await supabase
     .from('users')
     .select('organization_id')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   if (!userData) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  }
+
+  // Check if this is a system template (cannot be deleted)
+  const { data: existingTemplate } = await supabase
+    .from('templates')
+    .select('is_system_template')
+    .eq('id', id)
+    .single()
+
+  if (existingTemplate?.is_system_template) {
+    return NextResponse.json(
+      { error: 'システムテンプレートは削除できません' },
+      { status: 403 }
+    )
   }
 
   // テンプレートを削除（組織の確認）

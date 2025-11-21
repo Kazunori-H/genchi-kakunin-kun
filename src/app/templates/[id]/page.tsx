@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -9,9 +9,10 @@ interface TemplateItem {
   item_type: string
   label: string
   description: string | null
-  options: any
+  options: Record<string, unknown> | null
   required: boolean
   sort_order: number
+  display_facility_types: string[] | null
 }
 
 interface Template {
@@ -32,22 +33,54 @@ export default function TemplateDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchTemplate()
-  }, [])
-
-  const fetchTemplate = async () => {
+  const fetchTemplate = useCallback(async () => {
     try {
       const response = await fetch(`/api/templates/${params.id}`)
       if (!response.ok) {
-        throw new Error('Failed to fetch template')
+        const errorData = await response.json()
+        console.error('API Error:', errorData)
+        throw new Error(errorData.details || errorData.error || 'Failed to fetch template')
       }
       const data = await response.json()
       setTemplate(data)
     } catch (err) {
-      setError('テンプレートの取得に失敗しました')
+      console.error('Fetch error:', err)
+      setError(err instanceof Error ? err.message : 'テンプレートの取得に失敗しました')
     } finally {
       setIsLoading(false)
+    }
+  }, [params.id])
+
+  useEffect(() => {
+    fetchTemplate()
+  }, [fetchTemplate])
+
+  const handleDuplicate = async () => {
+    if (!template) return
+
+    if (
+      !confirm(
+        `「${template.name}」を複製しますか？`
+      )
+    ) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/templates/${params.id}/duplicate`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to duplicate template')
+      }
+
+      const newTemplate = await response.json()
+      router.push(`/templates/${newTemplate.id}`)
+      router.refresh()
+    } catch (err) {
+      console.error('Failed to duplicate template', err)
+      alert('テンプレートの複製に失敗しました')
     }
   }
 
@@ -73,6 +106,7 @@ export default function TemplateDetailPage() {
 
       router.push('/templates')
     } catch (err) {
+      console.error('Failed to delete template', err)
       alert('テンプレートの削除に失敗しました')
     }
   }
@@ -135,6 +169,12 @@ export default function TemplateDetailPage() {
             編集
           </Link>
           <button
+            onClick={handleDuplicate}
+            className="inline-flex items-center px-4 py-2 border border-indigo-300 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-white hover:bg-indigo-50"
+          >
+            複製
+          </button>
+          <button
             onClick={handleDelete}
             className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50"
           >
@@ -177,6 +217,29 @@ export default function TemplateDetailPage() {
                             <p className="mt-1 text-sm text-gray-500">
                               {item.description}
                             </p>
+                          )}
+                          {item.display_facility_types && item.display_facility_types.length > 0 && (
+                            <div className="mt-2">
+                              <span className="text-xs text-gray-500 mr-2">表示条件:</span>
+                              <div className="inline-flex flex-wrap gap-1">
+                                {item.display_facility_types.map((type) => {
+                                  const typeLabels: Record<string, string> = {
+                                    transport: '運搬',
+                                    transfer_storage: '積替保管',
+                                    intermediate_treatment: '中間処理',
+                                    final_disposal: '最終処分',
+                                  }
+                                  return (
+                                    <span
+                                      key={type}
+                                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                                    >
+                                      {typeLabels[type] || type}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </div>
                           )}
                         </div>
                         <span className="ml-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">

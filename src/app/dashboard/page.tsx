@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   const { data: userData } = await supabase
     .from('users')
     .select('organization_id, name')
-    .eq('auth_id', user.id)
+    .eq('id', user.id)
     .single()
 
   // 統計情報を取得

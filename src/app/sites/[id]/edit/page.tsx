@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,20 +9,23 @@ import Link from 'next/link'
 
 const siteSchema = z.object({
   name: z.string().min(1, '施設名を入力してください'),
+  facility_types: z.array(z.enum(['transport', 'transfer_storage', 'intermediate_treatment', 'final_disposal'])).optional(),
   address: z.string().min(1, '住所を入力してください'),
-  contact_person: z.string().optional(),
+  contact_name: z.string().optional(),
   contact_phone: z.string().optional(),
   contact_email: z.string().email('有効なメールアドレスを入力してください').optional().or(z.literal('')),
   notes: z.string().optional(),
 })
 
 type SiteFormData = z.infer<typeof siteSchema>
+type FacilityType = 'transport' | 'transfer_storage' | 'intermediate_treatment' | 'final_disposal'
 
 interface Site {
   id: string
   name: string
+  facility_types: string[] | null
   address: string
-  contact_person: string | null
+  contact_name: string | null
   contact_phone: string | null
   contact_email: string | null
   notes: string | null
@@ -36,6 +39,7 @@ export default function EditSitePage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isFetching, setIsFetching] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [facilityTypes, setFacilityTypes] = useState<FacilityType[]>([])
 
   const {
     register,
@@ -46,30 +50,40 @@ export default function EditSitePage() {
     resolver: zodResolver(siteSchema),
   })
 
-  useEffect(() => {
-    fetchSite()
-  }, [id])
-
-  const fetchSite = async () => {
+  const fetchSite = useCallback(async () => {
     try {
       const response = await fetch(`/api/sites/${id}`)
       if (!response.ok) {
         throw new Error('Failed to fetch site')
       }
       const data: Site = await response.json()
+      setFacilityTypes((data.facility_types || []) as FacilityType[])
       reset({
         name: data.name,
         address: data.address,
-        contact_person: data.contact_person || '',
+        contact_name: data.contact_name || '',
         contact_phone: data.contact_phone || '',
         contact_email: data.contact_email || '',
         notes: data.notes || '',
       })
     } catch (err) {
+      console.error('Failed to fetch site', err)
       setError('現地確認先の取得に失敗しました')
     } finally {
       setIsFetching(false)
     }
+  }, [id, reset])
+
+  useEffect(() => {
+    fetchSite()
+  }, [fetchSite])
+
+  const toggleFacilityType = (type: FacilityType) => {
+    setFacilityTypes(prev =>
+      prev.includes(type)
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    )
   }
 
   const onSubmit = async (data: SiteFormData) => {
@@ -82,7 +96,10 @@ export default function EditSitePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          facility_types: facilityTypes,
+        }),
       })
 
       if (!response.ok) {
@@ -92,6 +109,7 @@ export default function EditSitePage() {
       router.push(`/sites/${id}`)
       router.refresh()
     } catch (err) {
+      console.error('Failed to update site', err)
       setError('現地確認先の更新に失敗しました')
     } finally {
       setIsLoading(false)
@@ -159,6 +177,39 @@ export default function EditSitePage() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              施設種別（複数選択可）
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: 'transport', label: '運搬（車両基地など）' },
+                { value: 'transfer_storage', label: '積替保管施設' },
+                { value: 'intermediate_treatment', label: '中間処理施設' },
+                { value: 'final_disposal', label: '最終処分場' },
+              ].map(option => (
+                <div key={option.value} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id={`facility_type_${option.value}`}
+                    checked={facilityTypes.includes(option.value as FacilityType)}
+                    onChange={() => toggleFacilityType(option.value as FacilityType)}
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label
+                    htmlFor={`facility_type_${option.value}`}
+                    className="ml-2 block text-sm text-gray-700"
+                  >
+                    {option.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              該当する施設種別をすべて選択してください
+            </p>
+          </div>
+
+          <div>
             <label htmlFor="address" className="block text-sm font-medium text-gray-700">
               住所 <span className="text-red-500">*</span>
             </label>
@@ -174,13 +225,13 @@ export default function EditSitePage() {
           </div>
 
           <div>
-            <label htmlFor="contact_person" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="contact_name" className="block text-sm font-medium text-gray-700">
               担当者名
             </label>
             <input
-              {...register('contact_person')}
+              {...register('contact_name')}
               type="text"
-              id="contact_person"
+              id="contact_name"
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
           </div>
